@@ -75,12 +75,12 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Шаг 2 — GPT создаёт текст (новый интерфейс)
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.Completion.create(
             model="gpt-3.5-turbo",  # Модель для чатов
-            messages=[{"role": "user", "content": prompt}],
+            prompt=prompt,
             max_tokens=100
         )
-        post_text = response['choices'][0]['message']['content'].strip()  # Новый способ доступа к тексту
+        post_text = response.choices[0].text.strip()  # Новый способ доступа к тексту
         logger.info(f"Generated text: {post_text}")  # Логируем ответ от GPT
     except Exception as e:
         logger.error(f"Ошибка при генерации текста: {e}")
