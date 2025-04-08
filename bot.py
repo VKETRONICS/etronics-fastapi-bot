@@ -73,14 +73,14 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt = f"На основе этих постов сгенерируй короткий пост для ВКонтакте от магазина техники:\n\n"
     prompt += "\n\n".join(vk_posts) + "\n\nТолько один пост, 2-3 строки, живо и по делу."
 
-    # Шаг 2 — GPT создаёт текст
+    # Шаг 2 — GPT создаёт текст (новый интерфейс)
     try:
-        response = openai.Completion.create(
-            model="text-davinci-003",  # Используем другой подход
-            prompt=prompt,
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # Модель для чатов
+            messages=[{"role": "user", "content": prompt}],
             max_tokens=100
         )
-        post_text = response.choices[0].text.strip()  # Новый способ доступа к тексту
+        post_text = response['choices'][0]['message']['content'].strip()  # Новый способ доступа к тексту
         logger.info(f"Generated text: {post_text}")  # Логируем ответ от GPT
     except Exception as e:
         logger.error(f"Ошибка при генерации текста: {e}")
