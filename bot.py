@@ -8,7 +8,6 @@ from telegram import (
     ReplyKeyboardMarkup,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
-    InputMediaPhoto,
 )
 from telegram.ext import (
     Application,
@@ -20,10 +19,10 @@ from telegram.ext import (
     filters,
 )
 
-# Конфиг
+# Конфигурация
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 VK_TOKEN = os.getenv("VK_GROUP_TOKEN")
-VK_GROUP_ID = -229574072
+VK_GROUP_ID = -229574072  # ID группы ВКонтакте
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") + WEBHOOK_PATH
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -35,6 +34,17 @@ application: Application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bot")
 
+# Обработчик ошибок
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.error(f"Произошла ошибка: {context.error}")
+    if update:
+        await update.message.reply_text("Произошла ошибка, попробуйте снова позже.")
+    else:
+        logger.error("Ошибка произошла без update объекта")
+
+# Добавляем обработчик ошибок в приложение
+application.add_error_handler(error_handler)
+
 # Команда /start с кнопками
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [["✍ Сгенерировать пост", "ℹ️ Помощь"]]
@@ -44,7 +54,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-# Помощь
+# Команда /help
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "/start — запуск\n/help — помощь\n/generate — авто-пост\n\n"
@@ -54,9 +64,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Генерация поста
 async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    query = "игровой ноутбук"
+    query = "игровой ноутбук"  # Тема для поиска постов
 
-    # Шаг 1 — получаем посты из ВК
+    # Шаг 1 — получаем посты из ВКонтакте
     vk_posts = get_vk_posts(query)
     context.user_data["vk_source"] = vk_posts
 
@@ -64,20 +74,30 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt += "\n\n".join(vk_posts) + "\n\nТолько один пост, 2-3 строки, живо и по делу."
 
     # Шаг 2 — GPT создаёт текст
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=100
-    )
-    post_text = response.choices[0].message.content.strip()
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=100
+        )
+        post_text = response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Ошибка при генерации текста: {e}")
+        await update.message.reply_text("Ошибка при генерации текста.")
+        return
 
     # Шаг 3 — DALL·E генерирует изображение
-    dalle = openai.Image.create(
-        prompt="futuristic gaming laptop in cyberpunk style, vibrant lighting, 4K",
-        n=1,
-        size="1024x1024"
-    )
-    image_url = dalle['data'][0]['url']
+    try:
+        dalle = openai.Image.create(
+            prompt="futuristic gaming laptop in cyberpunk style, vibrant lighting, 4K",
+            n=1,
+            size="1024x1024"
+        )
+        image_url = dalle['data'][0]['url']
+    except Exception as e:
+        logger.error(f"Ошибка при генерации изображения: {e}")
+        await update.message.reply_text("Ошибка при генерации изображения.")
+        return
 
     # Сохраняем черновик
     context.user_data["draft"] = {
