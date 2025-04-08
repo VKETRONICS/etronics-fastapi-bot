@@ -19,7 +19,7 @@ from telegram.ext import (
     filters,
 )
 
-# Конфигурация
+# Конфиг
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 VK_TOKEN = os.getenv("VK_GROUP_TOKEN")
 VK_GROUP_ID = -229574072  # ID группы ВКонтакте
@@ -75,12 +75,13 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Шаг 2 — GPT создаёт текст
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
+        response = openai.Completion.create(
+            model="text-davinci-003",  # Используем другой подход
+            prompt=prompt,
             max_tokens=100
         )
-        post_text = response.choices[0].message.content.strip()
+        post_text = response.choices[0].text.strip()  # Новый способ доступа к тексту
+        logger.info(f"Generated text: {post_text}")  # Логируем ответ от GPT
     except Exception as e:
         logger.error(f"Ошибка при генерации текста: {e}")
         await update.message.reply_text("Ошибка при генерации текста.")
